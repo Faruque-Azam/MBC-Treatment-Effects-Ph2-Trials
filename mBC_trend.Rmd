@@ -1,0 +1,649 @@
+---
+title: "Trends mBC"
+author: "Faruque Azam"
+date: "2026-02-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Dataset preprocessing}
+
+mBC_Dataset_raw = read_excel("Dataset_mBC.xlsx")
+View(mBC_Dataset_raw)
+
+mBC_Dataset_raw = mBC_Dataset_raw %>% 
+  rowwise() %>% 
+     mutate(Combo = paste(na.omit(c_across(T1:T4)), 
+                          collapse = " ")) %>%
+     ungroup()
+  
+mBC_Dataset = mBC_Dataset_raw %>% 
+    select(Subtype, Pretreated, Stratified, Age, N, wECOG,
+         ORR, mPFS, mOS, Therapy, Therapy_H, Size, Targeted, Targeted_m, Targeted_yn, Chemo_m, Hormonal)  
+
+mBC_Dataset = mBC_Dataset %>%
+  mutate(Size = if_else(Size == "4-Agent",
+                        "3-Agent", Size)) %>% 
+mutate(across(where(is.character), as.factor)) %>% 
+  mutate(Size = factor(Size, levels = 
+                         c("1-Agent", "2-Agent", "3-Agent"),
+      ordered = TRUE))
+
+library(tidyverse)
+library(VIM)
+library(mice)
+
+mBC_Dataset_mice = mBC_Dataset %>%
+    mutate(ORR = replace(ORR, is.na(ORR), median(ORR, na.rm = TRUE)),
+           Age = replace(Age, is.na(Age), median(Age, na.rm = TRUE)),
+           N = replace(N, is.na(N), median(N, na.rm = TRUE)))
+
+  mBC_Dataset_mice = 
+    mice(mBC_Dataset_mice, m = 20, maxit = 30, seed = 329, 
+         method = c("polyreg", "logreg", "logreg", "cart", "cart", "cart", "cart", 
+                    "cart", "cart", "cart", "cart", "cart", "cart",
+                    "polyreg", "logreg", "polyreg", "logreg")) 
+
+
+mBC_Dataset_mice_u  = complete(mBC_Dataset_mice, 20)
+
+
+mBC_Dataset_mice_u = mBC_Dataset_mice_u %>% 
+rename(mOS_2 = mOS, 
+       mPFS_2 = mPFS, 
+       wECOG_2 = wECOG, 
+       Size_Cat = Size)
+
+mBC_Dataset_mice_u =  bind_cols(mBC_Dataset_mice_u, 
+            mBC_Dataset_raw %>% 
+              select(wECOG, mPFS, mOS, PMID, TTP, Combo, Size)) %>% 
+mutate(Size = as.integer(str_extract(as.character(Size), "\\d+"))) 
+
+mBC_Dataset_mice_u = bind_cols(mBC_Dataset_mice_u, df_Combo)
+
+
+  mBC_Dataset_final = mBC_Dataset_mice_u %>% 
+      mutate(ORR = ORR + 2) %>% 
+      mutate(Size_Cat = factor(Size_Cat, levels = 
+                         c("1-Agent", "2-Agent", "3-Agent"),
+      ordered = TRUE)) 
+  
+  
+  mBC_Dataset_OS = mBC_Dataset_final %>% 
+  mutate(Combo_sort = str_squish(Combo),
+    Combo_sort = map_chr(str_split(Combo_sort, "\\s+"),
+                         ~ paste(sort(.x), collapse = " "))) %>% 
+  mutate(Combo_sort = factor(Combo_sort)) %>%
+  mutate(Combo_other = fct_lump(Combo_sort, n = 15)) %>% 
+  filter(mOS_2 < 51) %>% 
+  filter(ORR < 100) %>% 
+
+
+```
+
+
+
+
+```{r Dataset Summary }
+require(tidyverse)
+require(gtsummary)
+library(gt)
+
+
+mBC_trend = mBC_Dataset_final %>% 
+  mutate(Combo = str_squish(Combo),
+    Combo = map_chr(str_split(Combo, "\\s+"),
+                         ~ paste(sort(.x), collapse = " ")))  %>%
+  mutate(Combo_other = factor(Combo)) %>%
+  mutate(Combo_other = fct_lump(Combo, n = 30)) %>% 
+   select(Age, Subtype, Pretreated, wECOG, Therapy, Size_Cat, 
+             ORR, mPFS, mOS, 
+          Combo_other, Meno, Trial_Size, Age_Cat, wECOG_Cat,
+          Targeted_m, Chemo_m, Hormonal, mOS_2, mPFS_2, wECOG_2) %>% 
+   mutate(Size_Cat = forcats::fct_recode(Size_Cat,
+    "1-agent" = "1-Agent",
+    "2-agent" = "2-Agent",
+    "3-agent" = "3-Agent"))
+
+
+gt_tbl = 
+  
+  mBC_trend %>% 
+    select(Age, Subtype, Pretreated, wECOG, Therapy, Size_Cat, 
+             ORR, mPFS, mOS, Combo_other) %>% 
+    tbl_summary( 
+      type = c(Age, wECOG, ORR, mPFS, mOS) ~ "continuous2",
+  statistic = 
+    list(all_continuous() ~ c("{median} ({p25} {p75})",
+                            "{mean} ({sd})"),
+      all_categorical() ~ "{n} ({p}%)"),
+      label = c(
+            Size_Cat ~ "Treatment size",
+            Subtype ~ "Tumor subtype",
+            ORR ~ "ORR (%)",
+            Therapy ~ "Therapy type",
+            mPFS ~ "mPFS (Months)",
+            mOS ~ "mOS (Months)"))
+
+gt_tbl = as_gt(gt_tbl)
+
+gtsave(gt_tbl, filename = "Table_1.docx")
+
+
+```
+
+  
+
+```{r Subtype Treatment Effect}
+library(tidytext)
+
+
+mBC_labeled = mBC_trend %>%
+  group_by(Subtype, Combo_other) %>%
+  mutate(n_studies = n()) %>%
+  ungroup() %>%
+  mutate(Combo_label = paste0(Combo_other, " (n=", n_studies, ")")) %>%
+  filter(n_studies >= 5)
+
+mk = mBC_labeled %>%
+  filter(n_studies >= 5, 
+         Combo_other != "Other") %>%
+  mutate(Combo_label = reorder_within(Combo_label, mPFS_2, Subtype)) %>%
+  ggplot(aes(Combo_label, mPFS_2, fill = Combo_other)) +
+  geom_boxplot(color = "grey30", outlier.alpha = 0.5) +
+  scale_x_reordered() +
+  scale_y_continuous(limits = c(0, 25)) +
+  scale_fill_discrete_qualitative(palette = "Pastel 1") +
+  coord_flip() +
+  facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
+  theme_light(base_size = 11) +
+  labs(y = "Median PFS (Months)", 
+       x = "Treatment regimen",
+       tag = "a") +
+  guides(fill = "none") + 
+  theme( plot.tag = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
+    axis.text.y = element_text(size = 9),
+    panel.spacing = unit(1, "lines")) 
+  
+
+   km = mBC_labeled %>%
+  filter(n_studies >= 5, 
+         Combo_other != "Other") %>%
+  mutate(Combo_label = reorder_within(Combo_label, mOS_2, Subtype)) %>%
+  ggplot(aes(Combo_label, mOS_2, fill = Combo_other)) +
+  geom_boxplot(color = "grey30", outlier.alpha = 0.5) +
+  scale_x_reordered() +
+  scale_y_continuous(limits = c(5, 50)) +
+  scale_fill_discrete_qualitative(palette = "Pastel 1") +
+  coord_flip() +
+  facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
+  theme_light(base_size = 11) +
+  labs(y = "Median OS (Months)", 
+       x = "Treatment regimen",
+       tag = "b") +
+  guides(fill = "none") +
+    theme( plot.tag = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
+    axis.text.y = element_text(size = 9),
+    panel.spacing = unit(1, "lines"))
+  
+    cowplot::plot_grid(mk, km, nrow = 1)
+
+ggsave(
+      "cowplot_Regimen_trend.jpg",
+      width = 14,                       
+      height = 10,                      
+      dpi = 600)
+
+
+mk = mBC_labeled %>%
+  filter(n_studies >= 5, 
+         Combo_other != "Other") %>%
+  mutate(Combo_label = reorder_within(Combo_label, mPFS_2, Subtype)) %>%
+  ggplot(aes(Combo_label, mPFS_2, fill = Combo_other, color = Combo_other )) +
+  geom_boxplot(show.legend = FALSE, 
+               alpha = 0.2,
+            #   size = 1.5,
+               color = "grey25", 
+               outlier.alpha = 0.5) +
+  scale_x_reordered() +
+  scale_y_continuous(limits = c(0, 25)) +
+  coord_flip() +
+  facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
+  theme_light(base_size = 11) +
+  labs(y = "Median PFS (Months)", 
+       x = "Treatment regimen",
+       tag = "a") +
+  theme( plot.tag = element_text(face = "bold"))
+
+
+   km = mBC_labeled %>%
+  filter(n_studies >= 5, 
+         Combo_other != "Other") %>%
+  mutate(Combo_label = reorder_within(Combo_label, mOS_2, Subtype)) %>%
+  ggplot(aes(Combo_label, mOS_2, fill = Combo_other, color = Combo_other)) +
+  geom_boxplot(show.legend = FALSE, 
+                alpha = 0.2,
+             #  size = 1.5, 
+                color = "grey25", 
+                outlier.alpha = 0.5) +
+  scale_x_reordered() +
+  scale_y_continuous(limits = c(5, 50)) +
+  coord_flip() +
+  facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
+  theme_light(base_size = 11) +
+  labs(y = "Median OS (Months)", 
+       x = "Treatment regimen",
+       tag = "b") +
+    theme( plot.tag = element_text(face = "bold"))
+
+    cowplot::plot_grid(mk, km, nrow = 1)
+   
+    ggsave(
+      "cowplot_Regimen_trend2.jpg",
+      width = 14,                       
+      height = 10,                      
+      dpi = 600)
+    
+
+library(tidytext)
+
+mBC_long = mBC_labeled %>%
+  filter(n_studies >= 5, Combo_other != "Other") %>%
+  pivot_longer(
+    cols = c(mPFS_2, mOS_2),
+    names_to = "Endpoint",
+    values_to = "Months") %>%
+  mutate(
+    Endpoint = recode(Endpoint, mPFS_2 = "Median PFS", mOS_2 = "Median OS"))
+
+
+
+mBC_long %>%
+  mutate(Combo_label = reorder_within(Combo_label, Months, Subtype)) %>%
+  ggplot(aes(Combo_label, Months, fill = Endpoint)) +
+  geom_boxplot(
+    position = position_dodge(width = 0.7),
+    width = 0.6,
+    alpha = 0.6,
+    color = "grey25",
+    outlier.alpha = 0.4 ) +
+  scale_x_reordered() +
+  coord_flip() +
+  facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
+  labs(y = "Months", x = "Treatment regimen") +
+  theme_light(base_size = 12) +
+  theme(legend.key.size = unit(.45, "cm"),
+          legend.position = c(0.88, 0.28),
+          legend.title = element_blank(),
+           legend.text = element_text(size = 10),
+          legend.background = element_rect(fill="NA",
+                                           color="grey"),
+          legend.margin = margin(t= 1.5, r=4.2, b=2, l=2)) +
+     scale_y_continuous(
+    breaks = c(6, 12, 18, 24, 30, 36, 42, 48)) 
+  
+
+    ggsave(
+      "cowplot_Regimen_trend2.jpg",
+      height = 10,                      
+      width = 12,                       
+      dpi = 600)
+    
+```
+
+
+```{r ggstatsplot Size vs Therapy Type}
+library(ggstatsplot)
+library(tidyverse)
+
+set.seed(329)
+pm = mBC_trend %>% 
+  ggbetweenstats(
+  x = Size_Cat,
+  y = mPFS_2,
+  results.subtitle = FALSE,
+  type = "nonparametric") +
+  labs( x = NULL,
+        y = "Median PFS (Months)",
+        subtitle = bquote(
+        #tag = "a") +
+  italic(p) == .(1.58e-57) * "," ~
+    hat(ε)[ordinal]^2 == .(0.24) * "," ~
+    "95% CI" ~ "[" * .("0.20") * "," ~ .("1.00") * "]")) +
+   scale_y_continuous(
+    breaks = c(6, 12, 18, 24, 30)) +
+    theme_light(base_size = 8) +
+    theme(legend.position = "none",
+      plot.subtitle = element_text(size = 8))
+        
+print(pm)
+
+set.seed(329)
+mp = mBC_trend %>% 
+  filter(mOS_2 < 51) %>% 
+  ggbetweenstats(
+  x = Size_Cat,
+  y = mOS_2,
+  results.subtitle = FALSE,
+  type = "nonparametric") +
+  labs(x = NULL,
+        y = "Median OS (Months)",
+       subtitle = bquote(
+       #tag = "b") +
+  italic(p) == .(5.13e-27) * "," ~
+    hat(ε)[ordinal]^2 == .(0.11) * "," ~
+    "95% CI" ~ "[" * .(0.08) * "," ~ .("1.00") * "]")) +
+   scale_y_continuous(
+    breaks = c(6, 12, 18, 24, 30, 36, 42, 48)) +
+  theme_light(base_size = 8) +
+theme(legend.position = "none",
+  plot.subtitle = element_text(size = 8))
+  
+
+  cowplot::plot_grid(pm, mp, nrow = 1,
+   labels = c("a", "b"),
+                   label_size = 10,
+                   label_fontface = "bold")
+
+    ggsave(
+      "cowplot_Size_Overall.jpg",
+      height = 5,                      
+      width = 8,                       
+      dpi = 600)
+
+```
+
+
+```{r Treatment Size vs Line of Therapy}
+
+
+      set.seed(329)
+  abc =  mBC_trend %>% 
+  filter(Size_Cat == "1-agent") %>% 
+  ggbetweenstats(
+  x = Pretreated,
+  y = mPFS_2,
+  results.subtitle = FALSE,
+  type = "nonparametric") +
+  labs(title = "1-agent",
+        x = NULL,
+        y = "Median PFS (Months)",
+     #  tag = "a",
+    subtitle = bquote(
+  italic(p) == .(1.01e-14) * "," ~
+    r[rb] == .(0.55) * "," ~
+    "95% CI" ~ "[" * .(0.44) * "," ~ .(0.64) * "]")) +
+     scale_y_continuous(
+          limits = c(0, 28),
+    breaks = c(6, 12, 18, 24, 30)) +
+    theme_light(base_size = 10) +
+ theme(legend.position = "none",
+   # plot.tag = element_text(face = "bold", size = 14),
+        plot.title =  element_text(face = "bold", 
+                                   size = 10),
+    plot.subtitle = element_text(size = 9))   
+    
+    
+    set.seed(329)
+  bca = mBC_trend %>% 
+  filter(Size_Cat == "2-agent") %>% 
+  ggbetweenstats(
+  x = Pretreated,
+  y = mPFS_2,
+  results.subtitle = FALSE,
+  type = "nonparametric") +
+  labs(title = "2-agent",
+        x = NULL,
+        y = NULL,
+      # tag = "d",
+    subtitle = bquote(
+  italic(p) == .(1.24e-17) * "," ~
+    r[rb] == .(0.47) * "," ~
+    "95% CI" ~ "[" * .(0.38) * "," ~ .(0.55) * "]")) +
+     scale_y_continuous(
+       limits = c(0, 28),
+    breaks = c(6, 12, 18, 24, 30)) +
+    theme_light(base_size = 10) +
+  theme(legend.position = "none",
+   # plot.tag = element_text(face = "bold", size = 14),
+        plot.title =  element_text(face = "bold", 
+                                   size = 10),
+    plot.subtitle = element_text(size = 9))
+    
+    
+        set.seed(329)
+  cba =  mBC_trend %>% 
+  filter(Size_Cat == "3-agent") %>% 
+  ggbetweenstats(
+  x = Pretreated,
+  y = mPFS_2,
+  results.subtitle = FALSE,
+  type = "nonparametric") +
+  labs(title = "3-agent",
+        x = NULL,
+        y = NULL,
+      # tag = "e",
+    subtitle = bquote(
+  italic(p) == .("4.59e-03") * "," ~
+    r[rb] == .(0.27) * "," ~
+    "95% CI" ~ "[" * .(0.09) * "," ~ .(0.44) * "]")) +
+     scale_y_continuous(
+       limits = c(0, 28),
+    breaks = c(6, 12, 18, 24, 30)) +
+    theme_light(base_size = 10) + 
+    theme(legend.position = "none",
+   # plot.tag = element_text(face = "bold", size = 14),
+        plot.title =  element_text(face = "bold", 
+                                   size = 10),
+    plot.subtitle = element_text(size = 9))
+    
+
+  PFS_row = cowplot::plot_grid(abc, bca, cba,
+                     nrow = 1)
+  
+  
+    set.seed(329)
+  def =  mBC_trend %>% 
+  filter(Size_Cat == "1-agent") %>% 
+  ggbetweenstats(
+  x = Pretreated,
+  y = mOS_2,
+  results.subtitle = FALSE,
+  type = "nonparametric") +
+  labs(title = "1-agent",
+        x = NULL,
+        y = "Median OS (Months)",
+      # tag = "f",
+    subtitle = bquote(
+  italic(p) == .(2.29e-16) * "," ~
+    r[rb] == .(0.58) * "," ~
+    "95% CI" ~ "[" * .(0.48) * "," ~ .(0.66) * "]")) +
+     scale_y_continuous(
+        limits = c(0, 50),
+    breaks = c(6, 12, 18, 24, 30, 36, 42, 48)) +
+    theme_light(base_size = 10) +
+    theme(legend.position = "none",
+    #plot.tag = element_text(face = "bold", size = 14),
+        plot.title =  element_text(face = "bold", 
+                                   size = 10),
+        plot.subtitle = element_text(size = 9))
+   
+  
+    set.seed(329)
+  efd =  mBC_trend %>% 
+  filter(Size_Cat == "2-agent") %>% 
+  ggbetweenstats(
+  x = Pretreated,
+  y = mOS_2,
+  results.subtitle = FALSE,
+  type = "nonparametric") +
+  labs(title = "2-agent",
+        x = NULL,
+        y = NULL,
+      # tag = "g",
+    subtitle = bquote(
+  italic(p) == .(3.00e-15) * "," ~
+    r[rb] == .(0.43) * "," ~
+    "95% CI" ~ "[" * .(0.34) * "," ~ .(0.51) * "]")) +
+     scale_y_continuous(
+        limits = c(0, 50),
+    breaks = c(6, 12, 18, 24, 30, 36, 42, 48)) +
+    theme_light(base_size = 10) +
+    theme(legend.position = "none",
+   # plot.tag = element_text(face = "bold", size = 14),
+        plot.title =  element_text(face = "bold", 
+                                   size = 10),
+        plot.subtitle = element_text(size = 9))    
+    
+
+  
+    set.seed(329)
+  fed = mBC_trend %>% 
+  filter(Size_Cat == "3-agent") %>% 
+  ggbetweenstats(
+  x = Pretreated,
+  y = mOS_2,
+  results.subtitle = FALSE,
+  type = "nonparametric") +
+  labs(title = "3-agent",
+        x = NULL,
+        y = NULL,
+      # tag = "h",
+    subtitle = bquote(
+  italic(p) == .("8.52e-04") * "," ~
+    r[rb] == .(0.32) * "," ~
+    "95% CI" ~ "[" * .(0.14) * "," ~ .(0.48) * "]")) +
+     scale_y_continuous(
+        limits = c(0, 50),
+    breaks = c(6, 12, 18, 24, 30, 36, 42, 48)) +
+    theme_light(base_size = 10) +
+    theme(legend.position = "none",
+ #   plot.tag = element_text(face = "bold", size = 14),
+        plot.title =  element_text(face = "bold", 
+                                   size = 10),
+    plot.subtitle = element_text(size = 9))
+
+  
+  OS_row  = cowplot::plot_grid(def, efd, fed, 
+                     nrow = 1)
+  
+  
+          sep_line = cowplot::ggdraw() + 
+  cowplot::draw_line(x = c(0.02, 0.98), y = c(0.5, 0.5), 
+            color = "grey50", size = 0.5, linetype = "dashed")
+          
+cowplot::plot_grid(PFS_row, sep_line, OS_row,
+                                 nrow = 3,
+                                 rel_heights = c(1, 0.02, 1),
+                   labels = c("a", "", "b"),
+                   label_size = 12,
+                   label_fontface = "bold")
+
+
+        ggsave(
+      "cowplot_Size_Pretreated_comb.jpg",
+      height = 8,                      
+      width = 10,                       
+      dpi = 600)
+
+```
+
+
+```{r wECOG Correlation Analysis}
+
+library(report)
+library(effectsize)
+
+  ggscatterstats(mBC_trend,
+                wECOG_2, ORR,
+                type = "nonparametric")
+
+  ECOG_ORR = cor.test(mBC_trend$wECOG_2, mBC_trend$ORR, 
+                    method = "spearman", exact = FALSE)  
+  report(ECOG_ORR)
+
+  ggscatterstats(mBC_trend,
+                wECOG_2, mPFS,
+                type = "nonparametric")
+    
+  ECOG_PFS = cor.test(mBC_trend$wECOG_2, mBC_trend$mPFS, 
+                    method = "spearman", exact = FALSE)  
+
+  report(ECOG_PFS)
+
+    ggscatterstats(mBC_trend,
+                wECOG_2, mOS,
+                type = "nonparametric")
+    
+  ECOG_OS = cor.test(mBC_trend$wECOG_2, mBC_trend$mOS, 
+                    method = "spearman", exact = FALSE)
+  report(ECOG_OS)
+
+
+  report() %>% 
+    effectsize::interpret_r(-0.41)
+
+```
+
+
+```{r Drug-drug interaction analysis}
+library(ggrepel)
+library(readxl)
+
+Synergy = read_excel("Clinical_interaction.xlsx") %>% 
+  mutate(Interaction = factor(Interaction,
+                               levels = c("Synergistic", "Antagonistic"))) %>% 
+  mutate(Combination = factor (Combination))
+
+
+    Synergy %>% 
+      ggplot(aes(ORR_exp, ORR_obs, 
+                 color = Interaction)) +
+      geom_point(size = 2.5, alpha = 0.5) +
+       ggrepel::geom_text_repel(
+    aes(label = Combination),
+    size = 2,
+    max.overlaps = Inf,
+    box.padding = 0.25,
+    point.padding = 0.15,
+    min.segment.length = 0) +
+      geom_abline(intercept = 0,
+              slope = 1,
+              lty = 2,
+              size = 0.3, 
+              color = "darkred",
+              linetype = "dashed") +
+       scale_y_continuous(
+        limits = c(0, 100)) +
+             scale_x_continuous(
+        limits = c(0, 100)) +
+      labs(x = "Expected ORR (%)",
+           y = "Observed ORR (%)") +
+      theme_light(base_size = 8) +
+      theme(legend.key.size = unit(0.5, "cm"),
+            legend.position = c(0.1, 0.9),
+            legend.title = element_text(size = 8),
+            legend.text = element_text(size = 6),
+            legend.background = element_rect(fill = "transparent",
+                                             color = "NA"),
+             legend.key  = element_rect(fill = "transparent", color = "NA"),
+            legend.margin = margin(t= 1.5, r= 4.2, b= 2, l= 2))
+
+
+        ggsave(
+      "Synergy_plot.jpg",
+      height = 5,                      
+      width = 5.5,                       
+      dpi = 600)
+    
+        effectsize::interpret_epsilon_squared(0.13)
+        effectsize::interpret_rank_biserial(0.32)
+        
+```
+
+
