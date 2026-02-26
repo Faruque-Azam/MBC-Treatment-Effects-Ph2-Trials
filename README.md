@@ -13,7 +13,7 @@ We pooled **1,088 treatment arms** from **892 phase II clinical trials** encompa
 ```
 ├── Dataset_mBC.xlsx              # Full pooled dataset of 1,088 treatment arms from phase II mBC trials
 ├── Dataset_interaction.xlsx      # Subset dataset for drug–drug interaction (synergy/antagonism) analysis
-├── mBC_trend.Rmd                 # R Markdown file containing all analysis code and figure generation
+├── MBC_trend.Rmd                 # R Markdown file containing all analysis code and figure generation
 └── README.md
 ```
 
