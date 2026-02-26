@@ -148,109 +148,6 @@ mBC_labeled = mBC_trend %>%
   mutate(Combo_label = paste0(Combo_other, " (n=", n_studies, ")")) %>%
   filter(n_studies >= 5)
 
-mk = mBC_labeled %>%
-  filter(n_studies >= 5, 
-         Combo_other != "Other") %>%
-  mutate(Combo_label = reorder_within(Combo_label, mPFS_2, Subtype)) %>%
-  ggplot(aes(Combo_label, mPFS_2, fill = Combo_other)) +
-  geom_boxplot(color = "grey30", outlier.alpha = 0.5) +
-  scale_x_reordered() +
-  scale_y_continuous(limits = c(0, 25)) +
-  scale_fill_discrete_qualitative(palette = "Pastel 1") +
-  coord_flip() +
-  facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
-  theme_light(base_size = 11) +
-  labs(y = "Median PFS (Months)", 
-       x = "Treatment regimen",
-       tag = "a") +
-  guides(fill = "none") + 
-  theme( plot.tag = element_text(face = "bold"),
-    strip.text = element_text(face = "bold", size = 12),
-    axis.text.y = element_text(size = 9),
-    panel.spacing = unit(1, "lines")) 
-  
-
-   km = mBC_labeled %>%
-  filter(n_studies >= 5, 
-         Combo_other != "Other") %>%
-  mutate(Combo_label = reorder_within(Combo_label, mOS_2, Subtype)) %>%
-  ggplot(aes(Combo_label, mOS_2, fill = Combo_other)) +
-  geom_boxplot(color = "grey30", outlier.alpha = 0.5) +
-  scale_x_reordered() +
-  scale_y_continuous(limits = c(5, 50)) +
-  scale_fill_discrete_qualitative(palette = "Pastel 1") +
-  coord_flip() +
-  facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
-  theme_light(base_size = 11) +
-  labs(y = "Median OS (Months)", 
-       x = "Treatment regimen",
-       tag = "b") +
-  guides(fill = "none") +
-    theme( plot.tag = element_text(face = "bold"),
-    strip.text = element_text(face = "bold", size = 12),
-    axis.text.y = element_text(size = 9),
-    panel.spacing = unit(1, "lines"))
-  
-    cowplot::plot_grid(mk, km, nrow = 1)
-
-ggsave(
-      "cowplot_Regimen_trend.jpg",
-      width = 14,                       
-      height = 10,                      
-      dpi = 600)
-
-
-mk = mBC_labeled %>%
-  filter(n_studies >= 5, 
-         Combo_other != "Other") %>%
-  mutate(Combo_label = reorder_within(Combo_label, mPFS_2, Subtype)) %>%
-  ggplot(aes(Combo_label, mPFS_2, fill = Combo_other, color = Combo_other )) +
-  geom_boxplot(show.legend = FALSE, 
-               alpha = 0.2,
-            #   size = 1.5,
-               color = "grey25", 
-               outlier.alpha = 0.5) +
-  scale_x_reordered() +
-  scale_y_continuous(limits = c(0, 25)) +
-  coord_flip() +
-  facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
-  theme_light(base_size = 11) +
-  labs(y = "Median PFS (Months)", 
-       x = "Treatment regimen",
-       tag = "a") +
-  theme( plot.tag = element_text(face = "bold"))
-
-
-   km = mBC_labeled %>%
-  filter(n_studies >= 5, 
-         Combo_other != "Other") %>%
-  mutate(Combo_label = reorder_within(Combo_label, mOS_2, Subtype)) %>%
-  ggplot(aes(Combo_label, mOS_2, fill = Combo_other, color = Combo_other)) +
-  geom_boxplot(show.legend = FALSE, 
-                alpha = 0.2,
-             #  size = 1.5, 
-                color = "grey25", 
-                outlier.alpha = 0.5) +
-  scale_x_reordered() +
-  scale_y_continuous(limits = c(5, 50)) +
-  coord_flip() +
-  facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
-  theme_light(base_size = 11) +
-  labs(y = "Median OS (Months)", 
-       x = "Treatment regimen",
-       tag = "b") +
-    theme( plot.tag = element_text(face = "bold"))
-
-    cowplot::plot_grid(mk, km, nrow = 1)
-   
-    ggsave(
-      "cowplot_Regimen_trend2.jpg",
-      width = 14,                       
-      height = 10,                      
-      dpi = 600)
-    
-
-library(tidytext)
 
 mBC_long = mBC_labeled %>%
   filter(n_studies >= 5, Combo_other != "Other") %>%
@@ -284,12 +181,12 @@ mBC_long %>%
           legend.background = element_rect(fill="NA",
                                            color="grey"),
           legend.margin = margin(t= 1.5, r=4.2, b=2, l=2)) +
-     scale_y_continuous(
+     scale_y_continuous(sec.axis = dup_axis(),
     breaks = c(6, 12, 18, 24, 30, 36, 42, 48)) 
   
 
     ggsave(
-      "cowplot_Regimen_trend2.jpg",
+      "Fig.1.jpg",
       height = 10,                      
       width = 12,                       
       dpi = 600)
@@ -351,7 +248,7 @@ theme(legend.position = "none",
                    label_fontface = "bold")
 
     ggsave(
-      "cowplot_Size_Overall.jpg",
+      "Fig.2.jpg",
       height = 5,                      
       width = 8,                       
       dpi = 600)
@@ -546,7 +443,7 @@ cowplot::plot_grid(PFS_row, sep_line, OS_row,
 
 
         ggsave(
-      "cowplot_Size_Pretreated_comb.jpg",
+      "Fig.3.jpg",
       height = 8,                      
       width = 10,                       
       dpi = 600)
@@ -595,7 +492,7 @@ library(effectsize)
 library(ggrepel)
 library(readxl)
 
-Synergy = read_excel("Clinical_interaction.xlsx") %>% 
+Synergy = read_excel("Dataset_interaction.xlsx") %>% 
   mutate(Interaction = factor(Interaction,
                                levels = c("Synergistic", "Antagonistic"))) %>% 
   mutate(Combination = factor (Combination))
@@ -636,7 +533,7 @@ Synergy = read_excel("Clinical_interaction.xlsx") %>%
 
 
         ggsave(
-      "Synergy_plot.jpg",
+      "Fig.4.jpg",
       height = 5,                      
       width = 5.5,                       
       dpi = 600)
