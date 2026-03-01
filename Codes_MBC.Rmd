@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r Dataset preprocessing}
+```{r Dataset Preprocessing}
 
 mBC_Dataset_raw = read_excel("Dataset_MBC.xlsx")
 View(mBC_Dataset_raw)
