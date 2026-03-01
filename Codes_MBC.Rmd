@@ -1,5 +1,5 @@
 ---
-title: "Trends mBC"
+title: "MBC Treatment Trend Analysis"
 author: "Faruque Azam"
 date: "2026-02-06"
 output: html_document
@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r Dataset preprocessing}
 
-mBC_Dataset_raw = read_excel("Dataset_mBC.xlsx")
+mBC_Dataset_raw = read_excel("Dataset_MBC.xlsx")
 View(mBC_Dataset_raw)
 
 mBC_Dataset_raw = mBC_Dataset_raw %>% 
@@ -85,8 +85,6 @@ mBC_Dataset_mice_u = bind_cols(mBC_Dataset_mice_u, df_Combo)
 ```
 
 
-
-
 ```{r Dataset Summary }
 require(tidyverse)
 require(gtsummary)
@@ -132,10 +130,8 @@ gt_tbl = as_gt(gt_tbl)
 
 gtsave(gt_tbl, filename = "Table_1.docx")
 
-
 ```
 
-  
 
 ```{r Subtype Treatment Effect}
 library(tidytext)
@@ -157,7 +153,6 @@ mBC_long = mBC_labeled %>%
     values_to = "Months") %>%
   mutate(
     Endpoint = recode(Endpoint, mPFS_2 = "Median PFS", mOS_2 = "Median OS"))
-
 
 
 mBC_long %>%
@@ -397,7 +392,6 @@ theme(legend.position = "none",
                                    size = 10),
         plot.subtitle = element_text(size = 9))    
     
-
   
     set.seed(329)
   fed = mBC_trend %>% 
@@ -488,7 +482,7 @@ library(effectsize)
 ```
 
 
-```{r Drug-drug interaction analysis}
+```{r Drug-drug Interaction Analysis}
 library(ggrepel)
 library(readxl)
 
@@ -537,10 +531,7 @@ Synergy = read_excel("Dataset_interaction.xlsx") %>%
       height = 5,                      
       width = 5.5,                       
       dpi = 600)
-    
-        effectsize::interpret_epsilon_squared(0.13)
-        effectsize::interpret_rank_biserial(0.32)
-        
+            
 ```
 
 
