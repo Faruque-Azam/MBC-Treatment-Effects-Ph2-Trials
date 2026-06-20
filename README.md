@@ -35,7 +35,7 @@ We pooled **1,088 treatment arms** from **892 phase II clinical trials** encompa
 | `ggstatsplot Size vs Therapy Type` | Violin plots with Kruskal–Wallis tests and epsilon-squared (ε²) effect sizes comparing PFS and OS distributions across 1-Agent, 2-Agent, and 3-Agent categories. | Figure 2 |
 | `Treatment Size vs Line of Therapy` | Six-panel grid comparing first-line vs. pretreated populations within each agent category for both PFS and OS, with rank biserial (r_rb) effect sizes and 95% CIs. | Figure 3 |
 | `wECOG Correlation Analysis` | Spearman correlations between weighted ECOG PS and each endpoint (ORR, mPFS, mOS) with scatter plots and effect size interpretation. | Statistical output |
-| `Drug-drug interaction analysis` | Reads interaction dataset and generates synergy/antagonism scatter plot (observed vs. expected ORR) with labeled combination points and diagonal reference line. | Figure 4 |
+| `Drug-drug interaction analysis` | Reads interaction dataset and generates response-based synergy/antagonism scatter plot (observed vs. expected ORR) with labeled combination points and diagonal reference line. | Figure 4 |
 
 ## Methods
 
