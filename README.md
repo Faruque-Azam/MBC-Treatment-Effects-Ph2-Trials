@@ -4,16 +4,16 @@
 
 This repository contains the dataset and analysis code for:
 
-> **"PFS and OS in Metastatic Breast Cancer Phase II Trials: Effects of Regimen Complexity, Line of Therapy, and Inferred Drug Interactions"**
+> **"Combination therapy, drug interactions, and survival outcomes in metastatic breast cancer: a pooled analysis of phase II trials"**
 
 We pooled **1,088 treatment arms** from **892 phase II clinical trials** encompassing **53,672 patients** with advanced or metastatic breast cancer (MBC) to examine how regimen complexity (mono-, doublet, and triplet therapy), line of therapy, molecular subtype, and baseline ECOG performance status influence progression-free survival (PFS) and overall survival (OS). Drug–drug synergy and antagonism were inferred from trial-level tumor response data using a null model of non-interacting agents.
 
 ## Repository Structure
 
 ```
-├── Dataset_mBC.xlsx              # Full pooled dataset of 1,088 treatment arms from phase II mBC trials
+├── Dataset_MBC.xlsx              # Full pooled dataset of 1,088 treatment arms from phase II MBC trials
 ├── Dataset_interaction.xlsx      # Subset dataset for drug–drug interaction (synergy/antagonism) analysis
-├── mBC_trend.Rmd                 # R Markdown file containing all analysis code and figure generation
+├── Codes_MBC_Trends.Rmd                 # R Markdown file containing all analysis code and figure generation
 └── README.md
 ```
 
@@ -21,9 +21,9 @@ We pooled **1,088 treatment arms** from **892 phase II clinical trials** encompa
 
 | File | Description |
 |------|-------------|
-| `Dataset_mBC.xlsx` | Primary dataset containing arm-level efficacy endpoints (ORR, mPFS, mOS) and explanatory variables (molecular subtype, treatment size, therapy type, treatment line, ECOG PS, drug names) extracted from 892 eligible studies. |
+| `Dataset_MBC.xlsx` | Primary dataset containing arm-level efficacy endpoints (ORR, mPFS, mOS) and explanatory variables (molecular subtype, treatment size, therapy type, treatment line, ECOG PS, drug names) extracted from 892 eligible studies. |
 | `Dataset_interaction.xlsx` | Derived dataset for drug–drug interaction analysis, containing expected ORR (from monotherapy benchmarks), observed ORR (from combination arms), and interaction classification for each drug pair. |
-| `mBC_trend.Rmd` | Complete R Markdown analysis pipeline organized into the sections described below. |
+| `Codes_MBC_Trends.Rmd` | Complete R Markdown analysis pipeline organized into the sections described below. |
 
 ### Analysis Pipeline (`mBC_trend.Rmd`)
 
