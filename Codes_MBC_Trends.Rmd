@@ -71,7 +71,7 @@ require(gtsummary)
 library(gt)
 
 
-mBC_trend = mBC_Dataset_final %>% 
+mBC_trend = mBC_Dataset_mice_u %>% 
   mutate(Combo = str_squish(Combo),
     Combo = map_chr(str_split(Combo, "\\s+"),
                          ~ paste(sort(.x), collapse = " ")))  %>%
