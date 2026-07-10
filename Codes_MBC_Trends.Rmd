@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r Dataset Preprocessing}
+library(readxl)
+library(tidyverse)
 
 mBC_Dataset_raw = read_excel("Dataset_MBC.xlsx")
 View(mBC_Dataset_raw)
@@ -32,7 +34,6 @@ mutate(across(where(is.character), as.factor)) %>%
                          c("1-Agent", "2-Agent", "3-Agent"),
       ordered = TRUE))
 
-library(tidyverse)
 library(VIM)
 library(mice)
 
