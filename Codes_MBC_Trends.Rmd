@@ -77,11 +77,11 @@ mBC_trend = mBC_Dataset_mice_u %>%
                          ~ paste(sort(.x), collapse = " ")))  %>%
   mutate(Combo_other = factor(Combo)) %>%
   mutate(Combo_other = fct_lump(Combo, n = 30)) %>% 
-   select(Age, Subtype, Pretreated, wECOG, Therapy, Size_Cat, 
-             ORR, mPFS, mOS, 
-          Combo_other, Meno, Trial_Size, Age_Cat, wECOG_Cat,
+   select(Age, Subtype, Pretreated, wECOG, Therapy, Size, 
+             ORR, mPFS, mOS, Combo, 
+          Combo_other,
           Targeted_m, Chemo_m, Hormonal, mOS_2, mPFS_2, wECOG_2) %>% 
-   mutate(Size_Cat = forcats::fct_recode(Size_Cat,
+   mutate(Size = forcats::fct_recode(Size,
     "1-agent" = "1-Agent",
     "2-agent" = "2-Agent",
     "3-agent" = "3-Agent"))
@@ -90,7 +90,7 @@ mBC_trend = mBC_Dataset_mice_u %>%
 gt_tbl = 
   
   mBC_trend %>% 
-    select(Age, Subtype, Pretreated, wECOG, Therapy, Size_Cat, 
+    select(Age, Subtype, Pretreated, wECOG, Therapy, Size, 
              ORR, mPFS, mOS, Combo_other) %>% 
     tbl_summary( 
       type = c(Age, wECOG, ORR, mPFS, mOS) ~ "continuous2",
@@ -99,7 +99,7 @@ gt_tbl =
                             "{mean} ({sd})"),
       all_categorical() ~ "{n} ({p}%)"),
       label = c(
-            Size_Cat ~ "Treatment size",
+            Size ~ "Treatment size",
             Subtype ~ "Tumor subtype",
             ORR ~ "ORR (%)",
             Therapy ~ "Therapy type",
