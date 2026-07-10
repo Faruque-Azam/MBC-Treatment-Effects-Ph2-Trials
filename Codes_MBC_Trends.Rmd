@@ -24,13 +24,13 @@ mBC_Dataset_raw = mBC_Dataset_raw %>%
   
 mBC_Dataset = mBC_Dataset_raw %>% 
     select(Subtype, Pretreated, Stratified, Age, N, wECOG,
-         ORR, mPFS, mOS, Therapy, Therapy_H, Size, Targeted, Targeted_m, Targeted_yn, Chemo_m, Hormonal)  
+         ORR, mPFS, mOS, Therapy_Class, Treatment_Size, Targeted, Targeted_m, Targeted_yn, Chemo_m, Hormonal)  
 
 mBC_Dataset = mBC_Dataset %>%
-  mutate(Size = if_else(Size == "4-Agent",
-                        "3-Agent", Size)) %>% 
+  mutate(Treatment_Size = if_else(Treatment_Size == "4-Agent",
+                        "3-Agent", Treatment_Size)) %>% 
 mutate(across(where(is.character), as.factor)) %>% 
-  mutate(Size = factor(Size, levels = 
+  mutate(Treatment_Size = factor(Treatment_Size, levels = 
                          c("1-Agent", "2-Agent", "3-Agent"),
       ordered = TRUE))
 
@@ -45,43 +45,22 @@ mBC_Dataset_mice = mBC_Dataset %>%
   mBC_Dataset_mice = 
     mice(mBC_Dataset_mice, m = 20, maxit = 30, seed = 329, 
          method = c("polyreg", "logreg", "logreg", "cart", "cart", "cart", "cart", 
-                    "cart", "cart", "cart", "cart", "cart", "cart",
+                    "cart", "cart", "cart", "cart", "cart",
                     "polyreg", "logreg", "polyreg", "logreg")) 
 
 
 mBC_Dataset_mice_u  = complete(mBC_Dataset_mice, 20)
 
-
 mBC_Dataset_mice_u = mBC_Dataset_mice_u %>% 
 rename(mOS_2 = mOS, 
        mPFS_2 = mPFS, 
        wECOG_2 = wECOG, 
-       Size_Cat = Size)
+       Size = Treatment_Size,
+       Therapy = Therapy_Class)
 
 mBC_Dataset_mice_u =  bind_cols(mBC_Dataset_mice_u, 
             mBC_Dataset_raw %>% 
-              select(wECOG, mPFS, mOS, PMID, TTP, Combo, Size)) %>% 
-mutate(Size = as.integer(str_extract(as.character(Size), "\\d+"))) 
-
-mBC_Dataset_mice_u = bind_cols(mBC_Dataset_mice_u, df_Combo)
-
-
-  mBC_Dataset_final = mBC_Dataset_mice_u %>% 
-      mutate(ORR = ORR + 2) %>% 
-      mutate(Size_Cat = factor(Size_Cat, levels = 
-                         c("1-Agent", "2-Agent", "3-Agent"),
-      ordered = TRUE)) 
-  
-  
-  mBC_Dataset_OS = mBC_Dataset_final %>% 
-  mutate(Combo_sort = str_squish(Combo),
-    Combo_sort = map_chr(str_split(Combo_sort, "\\s+"),
-                         ~ paste(sort(.x), collapse = " "))) %>% 
-  mutate(Combo_sort = factor(Combo_sort)) %>%
-  mutate(Combo_other = fct_lump(Combo_sort, n = 15)) %>% 
-  filter(mOS_2 < 51) %>% 
-  filter(ORR < 100) %>% 
-
+              select(wECOG, mPFS, mOS, PMID, Combo))
 
 ```
 
