@@ -13,20 +13,20 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readxl)
 library(tidyverse)
 
-mBC_Dataset_raw = read_excel("Dataset_MBC.xlsx")
+mbc_dataset_raw = read_excel("Dataset_MBC.xlsx")
 View(mBC_Dataset_raw)
 
-mBC_Dataset_raw = mBC_Dataset_raw %>% 
+mbc_dataset_raw = mbc_dataset_raw %>% 
   rowwise() %>% 
      mutate(Combo = paste(na.omit(c_across(T1:T4)), 
                           collapse = " ")) %>%
      ungroup()
   
-mBC_Dataset = mBC_Dataset_raw %>% 
+mbc_dataset = mbc_dataset_raw %>% 
     select(Subtype, Pretreated, Stratified, Age, N, wECOG,
          ORR, mPFS, mOS, Therapy_Class, Treatment_Size, Targeted, Targeted_m, Targeted_yn, Chemo_m, Hormonal)  
 
-mBC_Dataset = mBC_Dataset %>%
+mbc_dataset = mbc_dataset %>%
   mutate(Treatment_Size = if_else(Treatment_Size == "4-Agent",
                         "3-Agent", Treatment_Size)) %>% 
 mutate(across(where(is.character), as.factor)) %>% 
@@ -37,48 +37,38 @@ mutate(across(where(is.character), as.factor)) %>%
 library(VIM)
 library(mice)
 
-mBC_Dataset_mice = mBC_Dataset %>%
+mbc_dataset_mice = mbc_dataset %>%
     mutate(ORR = replace(ORR, is.na(ORR), median(ORR, na.rm = TRUE)),
            Age = replace(Age, is.na(Age), median(Age, na.rm = TRUE)),
            N = replace(N, is.na(N), median(N, na.rm = TRUE)))
 
-  mBC_Dataset_mice = 
-    mice(mBC_Dataset_mice, m = 20, maxit = 30, seed = 329, 
+  mbc_dataset_mice = 
+    mice(mbc_dataset_mice, m = 20, maxit = 30, seed = 329, 
          method = c("polyreg", "logreg", "logreg", "cart", "cart", "cart", "cart", 
                     "cart", "cart", "cart", "cart", "cart",
                     "polyreg", "logreg", "polyreg", "logreg")) 
 
+mbc_dataset_mice_u  = complete(mbc_dataset_mice, 20)
 
-mBC_Dataset_mice_u  = complete(mBC_Dataset_mice, 20)
-
-mBC_Dataset_mice_u = mBC_Dataset_mice_u %>% 
+mbc_dataset_mice_u = mbc_dataset_mice_u %>% 
 rename(mOS_2 = mOS, 
        mPFS_2 = mPFS, 
        wECOG_2 = wECOG, 
        Size = Treatment_Size,
        Therapy = Therapy_Class)
 
-mBC_Dataset_mice_u =  bind_cols(mBC_Dataset_mice_u, 
-            mBC_Dataset_raw %>% 
+mbc_dataset_mice_u =  bind_cols(mbc_dataset_mice_u, 
+            mbc_dataset_raw %>% 
               select(wECOG, mPFS, mOS, PMID, Combo))
 
-```
-
-
-```{r Dataset Summary }
-require(tidyverse)
-require(gtsummary)
-library(gt)
-
-
-mBC_trend = mBC_Dataset_mice_u %>% 
+mbc_trend = mbc_dataset_mice_u %>% 
   mutate(Combo = str_squish(Combo),
     Combo = map_chr(str_split(Combo, "\\s+"),
                          ~ paste(sort(.x), collapse = " ")))  %>%
   mutate(Combo_other = factor(Combo)) %>%
   mutate(Combo_other = fct_lump(Combo, n = 30)) %>% 
    select(Age, Subtype, Pretreated, wECOG, Therapy, Size, 
-             ORR, mPFS, mOS, Combo, 
+             ORR, mPFS, mOS, Combo,
           Combo_other,
           Targeted_m, Chemo_m, Hormonal, mOS_2, mPFS_2, wECOG_2) %>% 
    mutate(Size = forcats::fct_recode(Size,
@@ -86,10 +76,16 @@ mBC_trend = mBC_Dataset_mice_u %>%
     "2-agent" = "2-Agent",
     "3-agent" = "3-Agent"))
 
+```
+
+
+```{r Dataset Summary }
+library(gtsummary)
+library(gt)
 
 gt_tbl = 
   
-  mBC_trend %>% 
+  mbc_trend %>% 
     select(Age, Subtype, Pretreated, wECOG, Therapy, Size, 
              ORR, mPFS, mOS, Combo_other) %>% 
     tbl_summary( 
@@ -116,16 +112,14 @@ gtsave(gt_tbl, filename = "Table_1.docx")
 ```{r Subtype Treatment Effect}
 library(tidytext)
 
-
-mBC_labeled = mBC_trend %>%
+mbc_labeled = mbc_trend %>%
   group_by(Subtype, Combo_other) %>%
   mutate(n_studies = n()) %>%
   ungroup() %>%
   mutate(Combo_label = paste0(Combo_other, " (n=", n_studies, ")")) %>%
   filter(n_studies >= 5)
 
-
-mBC_long = mBC_labeled %>%
+mbc_long = mbc_labeled %>%
   filter(n_studies >= 5, Combo_other != "Other") %>%
   pivot_longer(
     cols = c(mPFS_2, mOS_2),
@@ -134,8 +128,7 @@ mBC_long = mBC_labeled %>%
   mutate(
     Endpoint = recode(Endpoint, mPFS_2 = "Median PFS", mOS_2 = "Median OS"))
 
-
-mBC_long %>%
+mbc_long %>%
   mutate(Combo_label = reorder_within(Combo_label, Months, Subtype)) %>%
   ggplot(aes(Combo_label, Months, fill = Endpoint)) +
   geom_boxplot(
@@ -148,21 +141,20 @@ mBC_long %>%
   coord_flip() +
   facet_grid(Subtype ~ ., scales = "free_y", space = "free_y") +
   labs(y = "Months", x = "Treatment regimen") +
-  theme_light(base_size = 12) +
+  theme_light(base_size = 12) + 
   theme(legend.key.size = unit(.45, "cm"),
-          legend.position = c(0.88, 0.28),
+          legend.position = c(0.88, 0.28), 
           legend.title = element_blank(),
-           legend.text = element_text(size = 10),
+           legend.text = element_text(size = 10), 
           legend.background = element_rect(fill="NA",
                                            color="grey"),
           legend.margin = margin(t= 1.5, r=4.2, b=2, l=2)) +
      scale_y_continuous(sec.axis = dup_axis(),
     breaks = c(6, 12, 18, 24, 30, 36, 42, 48)) 
   
-
     ggsave(
       "Fig.1.jpg",
-      height = 10,                      
+      height = 14,                      
       width = 12,                       
       dpi = 600)
     
@@ -171,12 +163,11 @@ mBC_long %>%
 
 ```{r ggstatsplot Size vs Therapy Type}
 library(ggstatsplot)
-library(tidyverse)
 
 set.seed(329)
-pm = mBC_trend %>% 
+pm = mbc_trend %>% 
   ggbetweenstats(
-  x = Size_Cat,
+  x = Size,
   y = mPFS_2,
   results.subtitle = FALSE,
   type = "nonparametric") +
@@ -196,10 +187,10 @@ pm = mBC_trend %>%
 print(pm)
 
 set.seed(329)
-mp = mBC_trend %>% 
+mp = mbc_trend %>% 
   filter(mOS_2 < 51) %>% 
   ggbetweenstats(
-  x = Size_Cat,
+  x = Size,
   y = mOS_2,
   results.subtitle = FALSE,
   type = "nonparametric") +
@@ -216,7 +207,6 @@ mp = mBC_trend %>%
 theme(legend.position = "none",
   plot.subtitle = element_text(size = 8))
   
-
   cowplot::plot_grid(pm, mp, nrow = 1,
    labels = c("a", "b"),
                    label_size = 10,
@@ -233,10 +223,9 @@ theme(legend.position = "none",
 
 ```{r Treatment Size vs Line of Therapy}
 
-
-      set.seed(329)
-  abc =  mBC_trend %>% 
-  filter(Size_Cat == "1-agent") %>% 
+set.seed(329)
+  abc =  mbc_trend %>% 
+  filter(Size == "1-agent") %>% 
   ggbetweenstats(
   x = Pretreated,
   y = mPFS_2,
@@ -260,10 +249,11 @@ theme(legend.position = "none",
                                    size = 10),
     plot.subtitle = element_text(size = 9))   
     
-    
+  print(abc)
+  
     set.seed(329)
-  bca = mBC_trend %>% 
-  filter(Size_Cat == "2-agent") %>% 
+  bca = mbc_trend %>% 
+  filter(Size == "2-agent") %>% 
   ggbetweenstats(
   x = Pretreated,
   y = mPFS_2,
@@ -289,8 +279,8 @@ theme(legend.position = "none",
     
     
         set.seed(329)
-  cba =  mBC_trend %>% 
-  filter(Size_Cat == "3-agent") %>% 
+  cba =  mbc_trend %>% 
+  filter(Size == "3-agent") %>% 
   ggbetweenstats(
   x = Pretreated,
   y = mPFS_2,
@@ -318,10 +308,9 @@ theme(legend.position = "none",
   PFS_row = cowplot::plot_grid(abc, bca, cba,
                      nrow = 1)
   
-  
     set.seed(329)
-  def =  mBC_trend %>% 
-  filter(Size_Cat == "1-agent") %>% 
+  def =  mbc_trend %>% 
+  filter(Size == "1-agent") %>% 
   ggbetweenstats(
   x = Pretreated,
   y = mOS_2,
@@ -347,8 +336,8 @@ theme(legend.position = "none",
    
   
     set.seed(329)
-  efd =  mBC_trend %>% 
-  filter(Size_Cat == "2-agent") %>% 
+  efd =  mbc_trend %>% 
+  filter(Size == "2-agent") %>% 
   ggbetweenstats(
   x = Pretreated,
   y = mOS_2,
@@ -374,8 +363,8 @@ theme(legend.position = "none",
     
   
     set.seed(329)
-  fed = mBC_trend %>% 
-  filter(Size_Cat == "3-agent") %>% 
+  fed = mbc_trend %>% 
+  filter(Size == "3-agent") %>% 
   ggbetweenstats(
   x = Pretreated,
   y = mOS_2,
@@ -406,7 +395,7 @@ theme(legend.position = "none",
   
           sep_line = cowplot::ggdraw() + 
   cowplot::draw_line(x = c(0.02, 0.98), y = c(0.5, 0.5), 
-            color = "grey50", size = 0.5, linetype = "dashed")
+            color = "grey50", linewidth = 0.5, linetype = "dashed")
           
 cowplot::plot_grid(PFS_row, sep_line, OS_row,
                                  nrow = 3,
@@ -430,49 +419,46 @@ cowplot::plot_grid(PFS_row, sep_line, OS_row,
 library(report)
 library(effectsize)
 
-  ggscatterstats(mBC_trend,
+  ggscatterstats(mbc_trend,
                 wECOG_2, ORR,
                 type = "nonparametric")
 
-  ECOG_ORR = cor.test(mBC_trend$wECOG_2, mBC_trend$ORR, 
+  ECOG_ORR = cor.test(mbc_trend$wECOG_2, mbc_trend$ORR, 
                     method = "spearman", exact = FALSE)  
   report(ECOG_ORR)
 
-  ggscatterstats(mBC_trend,
+  ggscatterstats(mbc_trend,
                 wECOG_2, mPFS,
                 type = "nonparametric")
     
-  ECOG_PFS = cor.test(mBC_trend$wECOG_2, mBC_trend$mPFS, 
+  ECOG_PFS = cor.test(mbc_trend$wECOG_2, mbc_trend$mPFS, 
                     method = "spearman", exact = FALSE)  
 
   report(ECOG_PFS)
 
-    ggscatterstats(mBC_trend,
+    ggscatterstats(mbc_trend,
                 wECOG_2, mOS,
                 type = "nonparametric")
     
-  ECOG_OS = cor.test(mBC_trend$wECOG_2, mBC_trend$mOS, 
+  ECOG_OS = cor.test(mbc_trend$wECOG_2, mbc_trend$mOS, 
                     method = "spearman", exact = FALSE)
   report(ECOG_OS)
 
-
-  report() %>% 
-    effectsize::interpret_r(-0.41)
+effectsize::interpret_r(-0.41, rules = "funder2019")
 
 ```
 
 
 ```{r Drug-drug Interaction Analysis}
-library(ggrepel)
 library(readxl)
+library(ggrepel)
 
-Synergy = read_excel("Dataset_interaction.xlsx") %>% 
+df_synergy = read_excel("Dataset_interaction.xlsx") %>% 
   mutate(Interaction = factor(Interaction,
                                levels = c("Synergistic", "Antagonistic"))) %>% 
   mutate(Combination = factor (Combination))
 
-
-    Synergy %>% 
+    df_synergy %>% 
       ggplot(aes(ORR_exp, ORR_obs, 
                  color = Interaction)) +
       geom_point(size = 2.5, alpha = 0.5) +
@@ -504,7 +490,6 @@ Synergy = read_excel("Dataset_interaction.xlsx") %>%
                                              color = "NA"),
              legend.key  = element_rect(fill = "transparent", color = "NA"),
             legend.margin = margin(t= 1.5, r= 4.2, b= 2, l= 2))
-
 
         ggsave(
       "Fig.4.jpg",
