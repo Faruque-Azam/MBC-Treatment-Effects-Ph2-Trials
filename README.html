@@ -11,7 +11,7 @@
 
 
 
-<title>README</title>
+<title>PFS and OS in Metastatic Breast Cancer Phase II Clinical Trials</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -348,19 +348,19 @@ display: none;
 
 
 
+<h1 class="title toc-ignore">PFS and OS in Metastatic Breast Cancer
+Phase II Clinical Trials</h1>
 
 </div>
 
 
-<div id="pfs-and-os-in-metastatic-breast-cancer-phase-ii-clinical-trials" class="section level1">
-<h1>PFS and OS in Metastatic Breast Cancer Phase II Clinical Trials</h1>
 <div id="overview" class="section level2">
 <h2>Overview</h2>
 <p>This repository contains the dataset and analysis code for:</p>
 <blockquote>
-<p><strong>“PFS and OS in Metastatic Breast Cancer Phase II Trials:
-Effects of Regimen Complexity, Line of Therapy, and Inferred Drug
-Interactions”</strong></p>
+<p><strong>“Combination therapy, drug interactions, and survival
+outcomes in metastatic breast cancer: a pooled analysis of phase II
+trials”</strong></p>
 </blockquote>
 <p>We pooled <strong>1,088 treatment arms</strong> from <strong>892
 phase II clinical trials</strong> encompassing <strong>53,672
@@ -373,9 +373,9 @@ response data using a null model of non-interacting agents.</p>
 </div>
 <div id="repository-structure" class="section level2">
 <h2>Repository Structure</h2>
-<pre><code>├── Dataset_mBC.xlsx              # Full pooled dataset of 1,088 treatment arms from phase II mBC trials
+<pre><code>├── Dataset_MBC.xlsx              # Full pooled dataset of 1,088 treatment arms from phase II MBC trials
 ├── Dataset_interaction.xlsx      # Subset dataset for drug–drug interaction (synergy/antagonism) analysis
-├── mBC_trend.Rmd                 # R Markdown file containing all analysis code and figure generation
+├── Codes_MBC_Trends.Rmd                 # R Markdown file containing all analysis code and figure generation
 └── README.md</code></pre>
 <div id="file-descriptions" class="section level3">
 <h3>File Descriptions</h3>
@@ -392,7 +392,7 @@ response data using a null model of non-interacting agents.</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>Dataset_mBC.xlsx</code></td>
+<td><code>Dataset_MBC.xlsx</code></td>
 <td>Primary dataset containing arm-level efficacy endpoints (ORR, mPFS,
 mOS) and explanatory variables (molecular subtype, treatment size,
 therapy type, treatment line, ECOG PS, drug names) extracted from 892
@@ -406,7 +406,7 @@ combination arms), and interaction classification for each drug
 pair.</td>
 </tr>
 <tr class="odd">
-<td><code>mBC_trend.Rmd</code></td>
+<td><code>Codes_MBC_Trends.Rmd</code></td>
 <td>Complete R Markdown analysis pipeline organized into the sections
 described below.</td>
 </tr>
@@ -473,9 +473,9 @@ within each agent category for both PFS and OS, with rank biserial
 </tr>
 <tr class="odd">
 <td><code>Drug-drug interaction analysis</code></td>
-<td>Reads interaction dataset and generates synergy/antagonism scatter
-plot (observed vs. expected ORR) with labeled combination points and
-diagonal reference line.</td>
+<td>Reads interaction dataset and generates response-based
+synergy/antagonism scatter plot (observed vs. expected ORR) with labeled
+combination points and diagonal reference line.</td>
 <td>Figure 4</td>
 </tr>
 </tbody>
@@ -512,7 +512,6 @@ interpretation</li>
 <li><code>ggrepel</code> — non-overlapping text labels</li>
 <li><code>colorspace</code> — qualitative color palettes</li>
 </ul>
-</div>
 </div>
 
 
